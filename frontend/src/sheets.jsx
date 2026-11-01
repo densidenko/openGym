@@ -33,7 +33,7 @@ import BodyMap from './components/BodyMap.jsx'
 import MuscleExplorer from './components/MuscleExplorer.jsx'
 import ExerciseViewToggle from './components/ExerciseViewToggle.jsx'
 import { sameMuscleFirst, swapMuscleOf } from './lib/similar-exercises.js'
-import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, muscleGroupsOf, hasExplicitMuscleMetadata, inMuscleOrder } from './lib/muscles.js'
+import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, muscleGroupsOf, hasExplicitMuscleMetadata, inMuscleOrder, zoneOf } from './lib/muscles.js'
 import { parseImport, mergeImport } from './lib/import-csv.js'
 import { importHevyData, HevyApiError, HEVY_DEV_SETTINGS, mergeHevyRoutines, hevySummaryCounts } from './lib/import-hevy.js'
 import { buildPlanBundle, parsePlan, mergePlan, printPlan, planPrintHTML } from './lib/plan-share.js'
@@ -1304,6 +1304,9 @@ function CustomExForm({ existing, prefill, onDone, close }) {
   const [aliases, setAliases] = useState(() => normalizeAliases(existing?.aliases).join(', '))
   const [aliasesOpen, setAliasesOpen] = useState(false)
   const [bp, setBp] = useState(existing ? existing.bp : '')
+  // The body part follows the target muscle's zone until a chip is tapped. An exercise saved with a
+  // body part that is not its target's zone (cardio, full body, an import) keeps the one it has.
+  const [bpPicked, setBpPicked] = useState(() => !!existing?.bp && existing.bp !== zoneOf(existing.tg))
   const [eq, setEq] = useState(existing ? (existing.eq || '') : '')
   const storedEq = existing && typeof existing.eq === 'string' && existing.eq && !ALL_EQUIPMENT.includes(existing.eq) ? existing.eq : null
   const [desc, setDesc] = useState(existing ? (existing.desc || '') : '')
@@ -1339,8 +1342,20 @@ function CustomExForm({ existing, prefill, onDone, close }) {
     setPrimaries(current => current.includes(value) ? current.filter(m => m !== value) : [...current, value])
   }
   const toggleSecondary = value => setSecondaries(current => current.includes(value) ? current.filter(m => m !== value) : [...current, value])
+  // The one-word target (the library row, the picker, the Muscles view) is not the sorted list's
+  // head — a hip thrust with Traps as an extra primary is not a Traps exercise. It is the primary
+  // tapped first, and an edit keeps the exercise's target as long as that muscle is still a primary.
+  // Once that muscle is gone the next answer is the first one tapped here that survived — a tap that
+  // only turned a chip off says nothing and is skipped with it. The sorted list is the last resort,
+  // for the user who drops the target and adds nothing in its place.
+  const targetOf = prim => (existing && prim.includes(existing.tg)) ? existing.tg : (primaryTaps.find(m => prim.includes(m)) || prim[0] || '')
+  const bpNow = (!bpPicked && zoneOf(targetOf(inMuscleOrder(primaries)))) || bp
+  // The body part a muscle sets can sit past the strip's right edge, out of sight.
+  const bpRow = useRef(null)
+  useRevealActiveChip(bpRow, bpNow)
   const save = () => {
     const name = n.trim()
+    const bp = bpNow
     if (!name) { toast(t('Give it a name')); return }
     if (!bp) { toast(t('Pick a body part')); return }
     if (!eq) { toast(t('Pick equipment')); return }
@@ -1360,13 +1375,7 @@ function CustomExForm({ existing, prefill, onDone, close }) {
     const prim = bp === 'cardio' ? ['cardiovascular system'] : inMuscleOrder(primaries)
     const sm = inMuscleOrder(secondaries.filter(m => !prim.includes(m)))
     const groups = [...prim, ...sm]
-    // The one-word target (the library row, the picker, the Muscles view) is not the sorted list's
-    // head — a hip thrust with Traps as an extra primary is not a Traps exercise. It is the primary
-    // tapped first, and an edit keeps the exercise's target as long as that muscle is still a primary.
-    // Once that muscle is gone the next answer is the first one tapped here that survived — a tap that
-    // only turned a chip off says nothing and is skipped with it. The sorted list is the last resort,
-    // for the user who drops the target and adds nothing in its place.
-    const tg = (existing && prim.includes(existing.tg)) ? existing.tg : (primaryTaps.find(m => prim.includes(m)) || prim[0] || '')
+    const tg = targetOf(prim)
     let id = existing && existing.id
     const extra = c => {
       c.aliases = normalizeAliases(aliases)
@@ -1394,27 +1403,27 @@ function CustomExForm({ existing, prefill, onDone, close }) {
     <input ref={nameRef} className="input" placeholder={t('Exercise name')} maxLength={80} value={n} onFocus={onNameFocus} onChange={e => setN(e.target.value)} />
     {aliasesOpen ? <ExerciseAliasesField value={aliases} onChange={setAliases} autoFocus />
       : <div><ExerciseAliasesLink names={normalizeAliases(aliases)} onOpen={() => setAliasesOpen(true)} /></div>}
-    <div className="chips" style={{ margin: '12px 0' }}>
-      {BODYPARTS.map(b => <button key={b} className={'chip' + (bp === b ? ' on' : '')} onClick={() => setBp(b)}>{t(b)}</button>)}
+    {bpNow !== 'cardio' && <MultiSelectRow title={t('Primary muscle groups')} sheetTitle={t('Primary muscle groups')}
+      values={primaries}
+      options={MUSCLES.map(m => ({ value: m, label: t(MUSCLE_NAME[m]) }))}
+      onToggle={togglePrimary} noneLabel={t('No explicit muscle group')} doneLabel={t('Done')} />
+    }
+    <MultiSelectRow title={t('Additional muscle groups')} sheetTitle={t('Additional muscle groups')}
+      values={secondaries}
+      options={MUSCLES.filter(m => !primaries.includes(m)).map(m => ({ value: m, label: t(MUSCLE_NAME[m]) }))}
+      onToggle={toggleSecondary} noneLabel={t('No explicit muscle group')} doneLabel={t('Done')} />
+    <h4 className="sec">{t('Body part')}</h4>
+    <div ref={bpRow} className="chips" style={{ marginBottom: 12 }}>
+      {BODYPARTS.map(b => <button key={b} className={'chip' + (bpNow === b ? ' on' : '')} onClick={() => { setBp(b); setBpPicked(true) }}>{t(b)}</button>)}
     </div>
-    <div className="chips" style={{ margin: '12px 0' }}>
+    {bpNow === 'cardio' && <div className="small dim row" style={{ marginBottom: 10, gap: 5 }}><Icon name="figureRun" style={{ fontSize: 13 }} />{t('Cardio exercises log time + speed instead of weight × reps.')}</div>}
+    <h4 className="sec">{t('Equipment')}</h4>
+    <div className="chips" style={{ marginBottom: 12 }}>
       {ALL_EQUIPMENT.map(k => (<button key={k} className={'chip' + (eq === k ? ' on' : '')} onClick={() => setEq(k)}>{t(k)}</button>))}
       {/* An imported exercise can carry equipment the list does not have (`custom` from a CSV or
           Hevy import). It stays a chip of its own, picked, so Save does not stop on "Pick equipment". */}
       {storedEq && <button key={storedEq} className={'chip' + (eq === storedEq ? ' on' : '')} onClick={() => setEq(storedEq)}>{t(storedEq)}</button>}
     </div>
-    {bp && <>
-      {bp !== 'cardio' && <MultiSelectRow title={t('Primary muscle groups')} sheetTitle={t('Primary muscle groups')}
-        values={primaries}
-        options={MUSCLES.map(m => ({ value: m, label: t(MUSCLE_NAME[m]) }))}
-        onToggle={togglePrimary} noneLabel={t('No explicit muscle group')} doneLabel={t('Done')} />
-      }
-      <MultiSelectRow title={t('Additional muscle groups')} sheetTitle={t('Additional muscle groups')}
-        values={secondaries}
-        options={MUSCLES.filter(m => !primaries.includes(m)).map(m => ({ value: m, label: t(MUSCLE_NAME[m]) }))}
-        onToggle={toggleSecondary} noneLabel={t('No explicit muscle group')} doneLabel={t('Done')} />
-    </>}
-    {bp === 'cardio' && <div className="small dim row" style={{ marginBottom: 10, gap: 5 }}><Icon name="figureRun" style={{ fontSize: 13 }} />{t('Cardio exercises log time + speed instead of weight × reps.')}</div>}
     <textarea className="input" rows={4} maxLength={1000} placeholder={t('Description (optional): setup, cues, anything you want to remember')}
       value={desc} onChange={e => setDesc(e.target.value)} />
     <CustomMediaField media={media} url={url} onChange={onMedia} />

@@ -4,8 +4,9 @@ import { LANGS, DERIVED_LOCALES } from './i18n-core.js'
 import {
   MUSCLE_NAME, exerciseMuscleSnapshot, hasExplicitMuscleMetadata, levelsOf, loadOf,
   loadOfWorkouts, loadOfWeeklyPlan, matchesMuscleGroups, muscleBalanceWindow, muscleGroupsOf,
-  musclesOf, muscleWeightsOf, rankOf
+  musclesOf, muscleWeightsOf, rankOf, MUSCLES, ZONES, zoneOf
 } from './muscles.js'
+import { BODYPARTS } from './exercises.js'
 
 describe('multi-muscle exercise metadata', () => {
   it('normalizes legacy primary/secondary fields and removes duplicate groups', () => {
@@ -332,5 +333,20 @@ describe('remembered catalogue muscles', () => {
     expect(Object.keys(musclesOf(own))).toEqual(['chest'])
     own.tg = 'biceps'
     expect(Object.keys(musclesOf(own))).toEqual(['biceps'])
+  })
+})
+
+// The Muscles explorer narrows the map's muscles by zone, and a custom exercise takes its body part
+// from its target's zone: both only hold while the zones are the catalogue's body parts.
+describe('zones', () => {
+  it('puts every muscle in exactly one zone, and every zone is a catalogue body part', () => {
+    expect(Object.values(ZONES).flat().sort()).toEqual([...MUSCLES].sort())
+    for (const z of Object.keys(ZONES)) expect(BODYPARTS).toContain(z)
+  })
+
+  it('agrees with the catalogue: an exercise sits in the zone of its target', () => {
+    const drawn = EXDB.map(e => [e, muscleGroupsOf(e)[0]]).filter(([, m]) => MUSCLES.includes(m))
+    const agree = drawn.filter(([e, m]) => e.bp === zoneOf(m)).length
+    expect(agree / drawn.length).toBeGreaterThan(0.9)
   })
 })

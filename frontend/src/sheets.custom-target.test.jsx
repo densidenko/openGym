@@ -140,3 +140,39 @@ describe('custom exercise target (QA C10)', () => {
     expect(c.tg).toBe('gluteal')
   })
 })
+
+// The body part (the catalogue's zone) is the target muscle's zone unless a chip says otherwise:
+// a "lower arms" exercise with Shoulders as its primary was one tap away before.
+describe('custom exercise body part', () => {
+  it('follows the target muscle when no body part was tapped', () => {
+    customExSheet(null)
+    const form = renderTop()
+    act(() => type(form.querySelector('input.input'), 'QA Curl'))
+    click(form, '.chip', 'barbell')
+    pickMuscles(form, 'Primary muscle groups', ['Biceps'])
+    expect(byText(form, '.chip.on', 'upper arms')).toBeTruthy()
+    click(form, 'button', 'Create exercise')
+    expect(S().customEx.find(x => x.n === 'QA Curl').bp).toBe('upper arms')
+  })
+
+  it('keeps a body part the user tapped', () => {
+    customExSheet(null)
+    const form = renderTop()
+    act(() => type(form.querySelector('input.input'), 'QA Curl Plank'))
+    click(form, '.chip', 'barbell')
+    click(form, '.chip', 'waist')
+    pickMuscles(form, 'Primary muscle groups', ['Biceps'])
+    click(form, 'button', 'Create exercise')
+    expect(S().customEx.find(x => x.n === 'QA Curl Plank').bp).toBe('waist')
+  })
+
+  it('keeps a saved body part that is not the target zone', () => {
+    const ex = custom({ bp: 'full body' })
+    seed(ex)
+    customExSheet(EXIDX[ex.id])
+    const form = renderTop()
+    pickMuscles(form, 'Primary muscle groups', ['Quads'])
+    click(form, 'button', 'Save')
+    expect(S().customEx[0].bp).toBe('full body')
+  })
+})
