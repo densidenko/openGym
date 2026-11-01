@@ -104,6 +104,9 @@ language-model assistance. They are not copied from a separate Portuguese
 dataset. Their review status and translation policy are documented alongside
 the source files.
 
+Ukrainian exercise instructions (`catalogue/i18n/uk.json`) are likewise original translations of
+the English source, produced with Anthropic Claude Code language-model assistance.
+
 ## Gym check-in QR codes
 
 The gym check-in feature (a saved membership code shown as a QR code on the phone, added by
