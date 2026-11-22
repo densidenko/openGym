@@ -18,6 +18,16 @@
     "Lower the barbell back down to the ground by bending at the hips and knees, keeping your back straight.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Rounding the back",
+    "Letting the bar drift away from the legs",
+    "Hips shooting up before the bar leaves the floor",
+    "Leaning back at the top"
+  ],
+  "tips": [
+    "Keep the bar close enough to brush your shins and thighs all the way up.",
+    "Take the slack out of the bar and brace before you pull."
+  ],
   "muscleMap": {
     "bodyPart": "full body",
     "primaries": [

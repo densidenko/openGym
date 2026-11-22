@@ -18,6 +18,15 @@
     "Pause for a moment at the top, then slowly lower the barbell back to the starting position.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Rounding the back",
+    "Standing up a little more with every rep",
+    "Jerking the weight up with the hips"
+  ],
+  "tips": [
+    "Pull the bar to the lower ribs and squeeze the shoulder blades together at the top.",
+    "Keep the torso angle fixed. If you cannot, lower the weight."
+  ],
   "muscleMap": {
     "primaries": [
       "upper-back"

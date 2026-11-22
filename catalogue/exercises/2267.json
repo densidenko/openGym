@@ -19,6 +19,15 @@
     "Bend your knees slowly to return.",
     "Repeat for the planned reps."
   ],
+  "mistakes": [
+    "Locking the knees out at the top",
+    "Hips rolling up off the seat at the bottom",
+    "Knees caving inward"
+  ],
+  "tips": [
+    "Keep your knees in line with your toes throughout.",
+    "Push through the whole foot, not just the toes."
+  ],
   "femaleVariant": "2608",
   "textSource": "opengym"
 }

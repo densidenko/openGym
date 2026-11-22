@@ -19,6 +19,15 @@
     "Lower your hips under control.",
     "Repeat without arching your lower back."
   ],
+  "mistakes": [
+    "Arching the lower back at the top",
+    "Pushing through the toes",
+    "Stopping short of full hip extension"
+  ],
+  "tips": [
+    "Tuck the chin and keep the ribs down so the glutes, not the lower back, finish the move.",
+    "Set your feet so the shins are vertical at the top."
+  ],
   "femaleVariant": "2216",
   "textSource": "opengym"
 }

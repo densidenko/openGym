@@ -2188,6 +2188,9 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
    to their own line instead and stay on the trailing edge. */
 .plan-sec-h>.plan-sec-acts{margin-inline-start:auto}
 .plan-sec-h h4.sec{margin:0}
+/* The headings between an exercise's steps, mistakes and tips: the usual section label, a shade
+   brighter and further from the list above, so they don't blend into the grey list text. */
+h4.sec.read-sec{color:var(--label);margin-top:26px}
 .plan-routines-bar{margin-top:0}
 .plan-textbtn{color:var(--acc);font-size:16px;padding:6px 4px;position:relative}
 .plan-textbtn::before{content:'';position:absolute;inset:-6px}

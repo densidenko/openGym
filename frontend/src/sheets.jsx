@@ -9,7 +9,7 @@ import { usesBar, hasBarOverride, isNoBar, barTypeWeight, ownBarDefault, barPick
 import { PLATE_SIZES, pairsOf, ownsPlates, withPlatePairs, withStandardPlates, withLoadKind, loadKindFor, baseWeightFor, dropGrid } from './lib/plates.js'
 import { toScale, rirOf, EFFORT_PRESETS, effortColor } from './lib/effort.js'
 import { beep, vibrate } from './lib/sound.js'
-import { t, tn, dateLocale, instrFor, instrTranslated, descFor, exerciseNameFor, exerciseNameClass, getLang, useLang } from './lib/i18n.js'
+import { t, tn, dateLocale, instrFor, instrTranslated, descFor, mistakesFor, tipsFor, exerciseNameFor, exerciseNameClass, getLang, useLang } from './lib/i18n.js'
 import { nav, closeThenNav, navToWorkout } from './lib/nav.js'
 import { buildStarterPlan, starterPlanDays, starterPlanOptions } from './lib/starter.js'
 import Media, { Thumb } from './components/Media.jsx'
@@ -1174,7 +1174,9 @@ function ExerciseDetail({ ex, close }) {
         calculator would answer "your 1RM is 23 kg" about a number that gets smaller as you get
         stronger (issue #232). Cardio has none for the same kind of reason. */}
     {!isCardio(ex) && !isAssisted(ex) && <OneRM ex={ex} />}
-    {instrFor(ex).length > 0 &&<><h4 className="sec">{t('How to')}{getLang() !== 'en' && !instrTranslated(ex) && <span className="dim" style={{ textTransform: 'none', letterSpacing: 0 }}> · {t('instructions in English')}</span>}</h4><ol className="steps-list">{instrFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ol></>}
+    {instrFor(ex).length > 0 &&<><h4 className="sec read-sec">{t('How to')}{getLang() !== 'en' && !instrTranslated(ex) && <span className="dim" style={{ textTransform: 'none', letterSpacing: 0 }}> · {t('instructions in English')}</span>}</h4><ol className="steps-list">{instrFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ol></>}
+    {mistakesFor(ex).length > 0 && <><h4 className="sec read-sec">{t('Common mistakes')}</h4><ul className="steps-list">{mistakesFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ul></>}
+    {tipsFor(ex).length > 0 && <><h4 className="sec read-sec">{t('Tips')}</h4><ul className="steps-list">{tipsFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ul></>}
     {/* The catalogue is community-edited (catalogue/README.md): a wrong muscle, a clumsy step or a
         missing translation is one tap from an issue that already names the exercise. */}
     {!isCustomEx(ex) && !ex.missing && <a className="small dim exfix-link" target="_blank" rel="noopener"
@@ -1310,6 +1312,9 @@ function CustomExForm({ existing, prefill, onDone, close }) {
   const [eq, setEq] = useState(existing ? (existing.eq || '') : '')
   const storedEq = existing && typeof existing.eq === 'string' && existing.eq && !ALL_EQUIPMENT.includes(existing.eq) ? existing.eq : null
   const [desc, setDesc] = useState(existing ? (existing.desc || '') : '')
+  // Common mistakes and tips, one per line here and a list on the exercise, like the catalogue's.
+  const [mistakes, setMistakes] = useState(() => (existing?.mistakes || []).join('\n'))
+  const [tips, setTips] = useState(() => (existing?.tips || []).join('\n'))
   const [media, setMedia] = useState(() => mediaOf(existing))
   // Whether this form changed the media at all. An edit that did not touch it writes back what the
   // exercise had, byte for byte: a ref from a newer version of the app (a codec or type this one
@@ -1381,6 +1386,10 @@ function CustomExForm({ existing, prefill, onDone, close }) {
       c.aliases = normalizeAliases(aliases)
       if (!keepMedia) { if (ref) c.media = ref; else delete c.media }
       if (link) c.url = link; else delete c.url
+      for (const [k, v] of [['mistakes', mistakes], ['tips', tips]]) {
+        const lines = v.split('\n').map(x => x.trim().slice(0, 200)).filter(Boolean).slice(0, 10)
+        if (lines.length) c[k] = lines; else delete c[k]
+      }
     }
     if (existing) update(s => { const c = (s.customEx || []).find(x => x.id === id); if (c) {
       c.n = name; c.bp = bp; c.desc = d; c.tg = tg; c.sm = sm; c.muscleGroups = groups; c.primaries = prim; c.secondaries = sm; c.eq = eq
@@ -1426,6 +1435,10 @@ function CustomExForm({ existing, prefill, onDone, close }) {
     </div>
     <textarea className="input" rows={4} maxLength={1000} placeholder={t('Description (optional): setup, cues, anything you want to remember')}
       value={desc} onChange={e => setDesc(e.target.value)} />
+    <textarea className="input" rows={3} placeholder={t('Common mistakes (optional), one per line')}
+      value={mistakes} onChange={e => setMistakes(e.target.value)} style={{ marginTop: 8 }} />
+    <textarea className="input" rows={3} placeholder={t('Tips (optional), one per line')}
+      value={tips} onChange={e => setTips(e.target.value)} style={{ marginTop: 8 }} />
     <CustomMediaField media={media} url={url} onChange={onMedia} />
     <div style={{ height: 14 }} />
     <Button variant="primary" onClick={save}>{existing ? t('Save') : t('Create exercise')}</Button>

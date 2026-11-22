@@ -5,7 +5,7 @@
 //   node scripts/catalogue/build.mjs --check   fail if they are out of date (CI)
 //
 // catalogue/exercises/<id>.json   one exercise, in English (name, muscles, description, steps)
-// catalogue/i18n/<lang>.json      { "<id>": { name, description, instructions } } per language
+// catalogue/i18n/<lang>.json      { "<id>": { name, description, instructions, mistakes, tips } } per language
 //
 // Generated, never edited by hand:
 //   frontend/src/lib/exercises-data.js        EXDB: the list the app indexes and searches
@@ -13,6 +13,7 @@
 //   frontend/src/instr/<lang>.js              instruction steps, loaded with the language
 //   frontend/src/exercise-names/<lang>.js     translated names, loaded with the language
 //   frontend/src/exercise-desc/<lang>.js      descriptions, loaded when one is shown
+//   frontend/src/exercise-tips/<lang>.js      common mistakes and tips, loaded with the descriptions
 // and then api/coach/core/library-data.js through build-coach-assets.mjs.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -80,12 +81,17 @@ const pack = (obj) => header + 'export default ' + jsonLiteral(obj) + '\n'
 const byId = (pick) => Object.fromEntries(exercises.filter(e => !e.variantOf).map(e => [e.id, pick(e)]).filter(([, v]) => v && (!Array.isArray(v) || v.length)))
 files['frontend/src/instr/en.js'] = pack(byId(e => e.instructions))
 files['frontend/src/exercise-desc/en.js'] = pack(byId(e => e.description))
+// { id: { mistakes, tips } }, each list only where the exercise has one.
+const notes = r => (r.mistakes || r.tips) && { ...(r.mistakes ? { mistakes: r.mistakes } : {}), ...(r.tips ? { tips: r.tips } : {}) }
+files['frontend/src/exercise-tips/en.js'] = pack(byId(notes))
 for (const [lang, rowsOf] of Object.entries(i18n)) {
   const pick = key => Object.fromEntries(Object.entries(rowsOf).filter(([, r]) => r[key] && (!Array.isArray(r[key]) || r[key].length)).map(([id, r]) => [id, r[key]]))
   const instr = pick('instructions'), names = pick('name'), desc = pick('description')
   if (Object.keys(instr).length) files[`frontend/src/instr/${lang}.js`] = pack(instr)
   if (Object.keys(names).length) files[`frontend/src/exercise-names/${lang}.js`] = pack(names)
   if (Object.keys(desc).length) files[`frontend/src/exercise-desc/${lang}.js`] = pack(desc)
+  const tips = Object.fromEntries(Object.entries(rowsOf).map(([id, r]) => [id, notes(r)]).filter(([, v]) => v))
+  if (Object.keys(tips).length) files[`frontend/src/exercise-tips/${lang}.js`] = pack(tips)
 }
 
 // Which languages have instruction and name packs, for i18n-core (a pack may be partial: anything

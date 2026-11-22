@@ -17,6 +17,15 @@
     "Pause for a moment, then push the dumbbells back up to the starting position, fully extending your arms.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Dumbbells drifting apart at the bottom",
+    "Flaring the elbows straight out",
+    "Bouncing out of the bottom"
+  ],
+  "tips": [
+    "Keep the shoulder blades pulled back and the feet planted.",
+    "Lower the dumbbells to chest level, then press up and slightly in."
+  ],
   "muscleMap": {
     "primaries": [
       "chest"

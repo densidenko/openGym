@@ -24,8 +24,10 @@ export const MUSCLES = list('trapezius, deltoids, chest, upper-back, serratus, b
 // two (frontend/src/lib/equipment.js ACCESSORIES), and reads most of them off the name.
 export const NEEDS = list('bench, pull-up bar')
 export const LANGS = list('ar, bn, de, es, fr, hi, hu, it, ko, pl, pt, pt-BR, ru, th, tr, uk, zh, zh-TW')
-const KEYS = ['id', 'name', 'bodyPart', 'equipment', 'target', 'secondaryMuscles', 'category', 'hold', 'needs', 'description', 'instructions', 'muscleMap', 'femaleVariant', 'maleVariant', 'variantOf', 'textSource']
-const I18N_KEYS = ['name', 'description', 'instructions']
+const KEYS = ['id', 'name', 'bodyPart', 'equipment', 'target', 'secondaryMuscles', 'category', 'hold', 'needs', 'description', 'instructions', 'mistakes', 'tips', 'muscleMap', 'femaleVariant', 'maleVariant', 'variantOf', 'textSource']
+const I18N_KEYS = ['name', 'description', 'instructions', 'mistakes', 'tips']
+// Common mistakes and tips are optional short lists, always written for openGym (so no em dash).
+const notesProblem = v => v != null && (!Array.isArray(v) || !v.length || v.some(s => typeof s !== 'string' || s.trim() !== s || !s || s.includes('—')))
 
 export function validateCatalogue(dir) {
   const problems = []
@@ -54,6 +56,7 @@ export function validateCatalogue(dir) {
       say(file, `"needs" is a list of: ${NEEDS.join(', ')} (kit the name does not mention), or left out`)
     if (typeof e.description !== 'string') say(file, '"description" must be text (may be empty)')
     if (!Array.isArray(e.instructions) || e.instructions.some(s => !isText(s))) say(file, '"instructions" must be a list of steps (text)')
+    for (const k of ['mistakes', 'tips']) if (notesProblem(e[k])) say(file, `"${k}" is a list of short texts without em dash (—), or left out`)
     if (e.textSource !== 'exercisedb') {
       // Text written for openGym follows the app's copy rules; the imported text is left as it came.
       const texts = [e.name, e.description, ...(e.instructions || [])]
@@ -100,6 +103,7 @@ export function validateCatalogue(dir) {
       if (r.name != null && !isText(r.name)) say(file, `"${id}".name must be text`)
       if (r.description != null && typeof r.description !== 'string') say(file, `"${id}".description must be text`)
       if (r.instructions != null && (!Array.isArray(r.instructions) || r.instructions.some(s => !isText(s)))) say(file, `"${id}".instructions must be a list of steps`)
+      for (const k of ['mistakes', 'tips']) if (notesProblem(r[k])) say(file, `"${id}".${k} must be a list of short texts without em dash (—)`)
     }
     i18n[lang] = rows
   }

@@ -16,5 +16,14 @@
     "Pause for a moment at the top, then slowly lower your arms back down to the starting position.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Swinging the weights up",
+    "Raising the arms above shoulder height",
+    "Shrugging with the traps"
+  ],
+  "tips": [
+    "Lead with the elbows and keep a slight bend in them.",
+    "Use a light weight and lower it slowly."
+  ],
   "textSource": "exercisedb"
 }

@@ -64,6 +64,8 @@ let exerciseNames = null        // { exId: translated name }, null = original ca
 let enInstr = null              // { exId: [steps] } in English, loaded on first need (instr/en.js)
 let descs = null                // { exId: description } for the current language, when it has any
 let enDescs = null              // { exId: description } in English (exercise-desc/en.js)
+let tips = null                 // { exId: { mistakes, tips } } for the current language, when it has any
+let enTips = null               // the same in English (exercise-tips/en.js)
 let detailsLoader = null        // registered by i18n.js; fetches the two English packs above
 let detailsAsked = false
 let enParens = true               // whether translated names show the English original in parentheses
@@ -177,6 +179,18 @@ export const descFor = ex => {
   return (enDescs && enDescs[ex.id]) || ex.desc || ''
 }
 
+// Common mistakes or tips (`key`), found the way descFor finds the description: the language's own,
+// then English, then the list a custom exercise carries itself. Empty where nobody wrote any.
+const notesFor = key => ex => {
+  if (!ex) return []
+  const own = tips && tips[ex.id]?.[key]
+  if (own) return own
+  if (!enTips) askDetails()
+  return (enTips && enTips[ex.id]?.[key]) || (Array.isArray(ex[key]) ? ex[key] : [])
+}
+export const mistakesFor = notesFor('mistakes')
+export const tipsFor = notesFor('tips')
+
 // i18n.js hands over the loader here; core itself never imports a chunk.
 export function _setDetailsLoader(fn) { detailsLoader = fn; detailsAsked = false; clearRetry() }
 
@@ -186,12 +200,15 @@ export function _setDetailsLoader(fn) { detailsLoader = fn; detailsAsked = false
 // loaded for: switched away from while they loaded, they are not this language's and are not
 // kept (the English packs are the same for every language). False then, and the caller loads
 // the current language's own.
-export function _setDetails(newEnInstr, newEnDescs, newDescs, forLang = lang) {
+// The mistakes and tips packs come along the same way, last.
+export function _setDetails(newEnInstr, newEnDescs, newDescs, forLang = lang, newEnTips = null, newTips = null) {
   enInstr = newEnInstr || enInstr
   enDescs = newEnDescs || enDescs
-  if (enInstr && enDescs) clearRetry()
+  enTips = newEnTips || enTips
+  if (enInstr && enDescs && enTips) clearRetry()
   const current = forLang === lang
   if (current) descs = lang === 'en' ? null : (newDescs || null)
+  if (current) tips = lang === 'en' ? null : (newTips || null)
   version++
   return current
 }
