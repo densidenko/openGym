@@ -63,6 +63,8 @@ function lazyView(load) {
   }
 }
 const Admin = lazyView(() => import('./views/Admin.jsx'))
+const StudentsList = lazyView(() => import('./views/Students.jsx').then(m => ({ default: m.StudentsList })))
+const StudentView = lazyView(() => import('./views/Students.jsx').then(m => ({ default: m.StudentView })))
 const CoachChat = lazyView(() => import('./views/CoachChat.jsx'))
 const Measurements = lazyView(() => import('./views/Measurements.jsx'))
 const CoachIntake = lazyView(() => import('./views/CoachIntake.jsx'))
@@ -314,6 +316,8 @@ function Shell() {
       <Route path="/coach/proposal" element={<Navigate to="/coach" replace />} />
       <Route path="/coach/setup" element={<CoachSetup />} />
       <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
+      <Route path="/students" element={user?.trainer ? <StudentsList /> : <Navigate to="/home" replace />} />
+      <Route path="/students/:id" element={user?.trainer ? <StudentView /> : <Navigate to="/home" replace />} />
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   ))

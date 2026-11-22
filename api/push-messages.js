@@ -9,6 +9,7 @@ const COPY = {
     dayFallbackTitle: 'Workout planned today',
     dayRoutineSuffix: 'today',
     dayBody: "It's on your plan. Let's go 💪",
+    trainerPlanTitle: '{0} updated your plan', trainerPlanBody: 'New: {0}.', trainerPlanBodyNone: 'Open the app to see it.',
   },
   'pt-BR': {
     restTitle: 'Descanso terminado 💪',
@@ -17,6 +18,7 @@ const COPY = {
     dayFallbackTitle: 'Treino planejado para hoje',
     dayRoutineSuffix: 'hoje',
     dayBody: 'Está no seu plano. Bora treinar 💪',
+    trainerPlanTitle: '{0} atualizou seu plano', trainerPlanBody: 'Novidades: {0}.', trainerPlanBodyNone: 'Abra o app para ver.',
   },
 };
 
@@ -40,6 +42,13 @@ export function routineEmoji(value) {
   if (!value) return DEFAULT_EMOJI;
   if (!/^[A-Za-z]+$/.test(value)) return value;
   return GLYPH_EMOJI[value] || DEFAULT_EMOJI;
+}
+
+// A trainer changed the student's plan (server.js PUT /api/trainer/student/plan).
+export function trainerPlanPush(lang, trainer, names) {
+  const copy = copyFor(lang);
+  const fill = (str, v) => str.replace('{0}', () => v);
+  return { title: fill(copy.trainerPlanTitle, trainer), body: names.length ? fill(copy.trainerPlanBody, names.slice(0, 3).join(', ')) : copy.trainerPlanBodyNone, tag: 'trainer-plan', url: '#/plan' };
 }
 
 export function restTimerPush(lang) {
