@@ -18,7 +18,8 @@ import * as coachJobs from './coach/jobs.js';
 import { coachRoutes } from './coach/routes.js';
 import { startCadence } from './coach/cadence.js';
 import { startWarmup } from './coach/warmup.js';
-import { dayReminderPush, nudgePush, restTimerPush, testPush } from './push-messages.js';
+import { dayReminderPush, nudgePush, restTimerPush, testPush, trainerPlanPush } from './push-messages.js';
+import { CODE_DAYS, dropLinksOf, linkWith, newCode, planFor, studentsOf, trainerByCode, trainersOf, trainingOf, trainingSummary, unlink } from './trainer.js';
 import { verifyError, isMisconfigured, originHint } from './verify-error.js';
 import {
   hashPassword, verifyPassword, needsRehash, passwordProblem, passwordLength, nameKey, BusyError,
@@ -149,6 +150,7 @@ db.creds = db.creds || [];
 db.subs = db.subs || [];
 db.invites = db.invites || [];
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
+db.trainerLinks = db.trainerLinks || []; // a trainer and a student (trainer.js)
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // One owner per instance, any number of admins. Admins run the place day to day (users, invites,
 // the Coach); the owner is the one admin the others cannot act on: only the owner appoints or
@@ -1228,7 +1230,7 @@ function loginTarget(body) {
 }
 const acctKey = u => 'acct:' + u.id;
 const passkeyCount = u => db.creds.filter(c => c.userId === u.id).length;
-const publicUser = u => ({ id: u.id, name: u.name, admin: isAdmin(u), ...(isOwner(u) ? { owner: true } : {}) });
+const publicUser = u => ({ id: u.id, name: u.name, admin: isAdmin(u), ...(isOwner(u) ? { owner: true } : {}), ...(u.trainer ? { trainer: true } : {}) });
 const POLICY_ERRORS = {
   'too-short': `the password needs at least ${MIN_LENGTH} characters`,
   'too-long': `the password can have at most ${MAX_LENGTH} characters`,
@@ -1377,6 +1379,7 @@ function removeAccount(u) {
   db.creds = (db.creds || []).filter(c => c.userId !== u.id);
   db.subs = (db.subs || []).filter(x => x.userId !== u.id);
   dropDeviceLinks(db, u.id);
+  db.trainerLinks = dropLinksOf(db.trainerLinks, u.id);
   presence.delete(u.id);
   // The training history and any Coach credential of theirs, both outside db.json.
   try { fs.unlinkSync(stateFile(u.id)); } catch { /* already gone */ }
@@ -2107,6 +2110,180 @@ function dataWritable() {
   return ok;
 }
 
+// Writes `state` over the stored profile `cur` of `user`: what PUT /api/data does once the request
+// has been checked, and what a trainer's plan for a student does (PUT /api/trainer/student/plan).
+// null when the document cannot be stored (nested too deep to compare or to stringify), else
+// { rev, wid, ts }: the revision the writer is told, which is not always the one stored (below).
+function commitState(user, cur, state, { overRead = false, stamped = false } = {}) {
+  const curRev = cur?._rev || 0;
+  delete state.active;              // in-progress workouts stay device-local
+  // "Reset everything" stamps the profile (`resetAt`, with `resetIds`: what it wiped). The stamp
+  // only moves forward: a write without it, or with an older one — a client from before it, a
+  // backup restored over the profile — keeps the stored stamp. Otherwise every device that saw
+  // the reset would take that copy for one older than the reset, and wipe it again on its next
+  // merge (frontend/src/lib/sync-merge.js).
+  const storedReset = Number(cur?.resetAt) || 0;
+  if (storedReset > (Number(state.resetAt) || 0)) {
+    state.resetAt = cur.resetAt;
+    if (cur.resetIds && typeof cur.resetIds === 'object') state.resetIds = cur.resetIds;
+    else delete state.resetIds;
+  }
+  // The records of removals and edits only grow, and what a writer that does not stamp its own
+  // changes (an older app, an API script) changed is stamped here, so it is neither wiped nor
+  // undone by the next device that merges (sync-stamps.js).
+  // A document nested too deep to compare is the bad request the stringify below refuses too.
+  const report = {};
+  try { stampPut(cur, state, { overRead, stamped, report }); }
+  catch (e) { if (e instanceof RangeError) return null; throw e; }
+  state._rev = curRev + 1;          // server-owned; whatever the client sent is ignored
+  // A writer that does not stamp (an older app) takes the revision it is told for the document it
+  // sent, and only reads the profile again once the revision moves. When the server put back
+  // something it left out or set back (sync-stamps.js), the document stored is not that one: it
+  // goes in one revision further, so the writer's next check of the revision (every half minute)
+  // finds it moved and reads it, and its next push over the one it was told is a conflict to merge.
+  if (report.changed) state._rev = curRev + 2;
+  state._wids = [...(Array.isArray(cur?._wids) ? cur._wids : []), ...(cur?._wid ? [cur._wid] : [])]
+    .filter(x => typeof x === 'string').slice(-WID_KEEP);
+  state._wid = crypto.randomBytes(8).toString('hex');
+  // JSON.parse takes any nesting, JSON.stringify recurses and runs out of stack on a document
+  // nested some thousands deep. No client builds one; it is a bad request, not a server error.
+  let text;
+  try { text = JSON.stringify(state); }
+  catch (e) { if (e instanceof RangeError) return null; throw e; }
+  atomicWrite(stateFile(user.id), text);
+  // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
+  // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
+  // `_rev` going from 7 to 8 does not change the file's size, so two writes inside one 4 ms
+  // tick are the same (mtimeMs, size) key. A reader that sampled between them would then serve
+  // the old revision until some later write happened to land on a different tick. This is the
+  // only writer of a state file in the tree, so evicting here is the whole fix.
+  stateCache.delete(user.id);
+  // Starts (or stops) the grace clock of every stored file this write stopped (or started)
+  // referencing. Bookkeeping only: the state is already saved, so nothing here may turn a
+  // successful write into an error.
+  if (MEDIA_ON) {
+    try { MEDIA.noteState(user.id, state); } catch (e) { console.error('media noteState', e); }
+  }
+  return { rev: curRev + 1, wid: state._wid, ts: state._ts || null };
+}
+
+/* ---------- trainers and their students (trainer.js) ---------- */
+// The student makes the link, with the trainer's code, seeing what they share; either side ends
+// it. Through it the trainer reads the student's training and writes their plan, nothing else.
+const TRAINER_TRIES = createWindow({ max: 10, windowMs: 3600000 });
+const trainerRoutes = {
+  // The trainer's code, to hand to a student: the live one (or none), or a new one.
+  'GET /api/trainer/code': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    if (!user.trainer) return json(res, 403, { error: 'not a trainer' });
+    const c = user.trainerCode;
+    json(res, 200, c && c.exp > Date.now() ? { code: c.code, exp: c.exp } : { code: null });
+  },
+  'POST /api/trainer/code': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    if (!user.trainer) return json(res, 403, { error: 'not a trainer' });
+    user.trainerCode = { code: newCode(), exp: Date.now() + CODE_DAYS * 86400000 };
+    saveDb();
+    audit(req, 'trainer.code', { user });
+    json(res, 200, { code: user.trainerCode.code, exp: user.trainerCode.exp });
+  },
+  'GET /api/trainer/students': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    if (!user.trainer) return json(res, 403, { error: 'not a trainer' });
+    // With a line of how each trains lately (last workout, last 7 and 28 days): one profile read
+    // each, the price of a list a trainer opens to see who needs a word.
+    const today = new Date().toISOString().slice(0, 10);
+    const students = studentsOf(db.trainerLinks, db.users, user)
+      .map(s => ({ ...s, training: trainingSummary(readStateCached(s.student.id) || {}, today) }));
+    json(res, 200, { students });
+  },
+  // A student's training, for their trainer (trainer.js trainingOf): only through a link of theirs,
+  // only the training, the body too when the student shares it.
+  'GET /api/trainer/student': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    if (!user.trainer) return json(res, 403, { error: 'not a trainer' });
+    const id = new URL(req.url, 'http://x').searchParams.get('id');
+    const link = db.trainerLinks.find(l => l.trainerId === user.id && l.clientId === id);
+    const student = link && db.users.find(u => u.id === id);
+    if (!student) return json(res, 404, { error: 'not your student' });
+    const S = readState(student.id) || {};
+    json(res, 200, { link: { id: link.id, scope: link.scope || { body: false }, created: link.created }, student: { id: student.id, name: student.name }, lastSync: lastSyncOf(student, S), training: trainingOf(S, link.scope) });
+  },
+  // A student's side: their trainers, a link made with a code, the scope of one changed.
+  'GET /api/trainer/mine': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    json(res, 200, { trainers: trainersOf(db.trainerLinks, db.users, user) });
+  },
+  'POST /api/trainer/link': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    const wait = TRAINER_TRIES.take(user.id);
+    if (wait) return json(res, 429, { error: 'too many tries, try again later', code: 'locked', retryAfter: wait }, { 'Retry-After': String(wait) });
+    const body = await readBody(req);
+    const trainer = trainerByCode(db.users, body.code);
+    if (!trainer) { audit(req, 'trainer.link', { ok: false, user, msg: 'bad code' }); return json(res, 400, { error: 'This code is not valid, or it has expired.', code: 'bad-code' }); }
+    const out = linkWith(db.trainerLinks, trainer, user, { body: !!body.body });
+    if (out.error) return json(res, 400, { error: 'You cannot be your own student.', code: 'self' });
+    db.trainerLinks = out.links;
+    saveDb();
+    audit(req, 'trainer.link', { user, target: trainer });
+    json(res, 200, { ok: true, link: { id: out.link.id, trainer: { id: trainer.id, name: trainer.name }, scope: out.link.scope, created: out.link.created } });
+  },
+  'POST /api/trainer/scope': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    const body = await readBody(req);
+    const link = db.trainerLinks.find(l => l.id === body.id && l.clientId === user.id);
+    if (!link) return json(res, 404, { error: 'no such link' });
+    link.scope = { ...(link.scope || {}), body: !!body.body };
+    saveDb();
+    audit(req, 'trainer.scope', { user, msg: link.scope.body ? 'body on' : 'body off' });
+    json(res, 200, { ok: true, scope: link.scope });
+  },
+  // The plan a trainer makes for a student (trainer.js planFor): routines new or rewritten, routines
+  // taken out, the weekdays. Written the way an app that keeps no stamps of its own writes
+  // (stampPut works out what changed and stamps it), so the student's phone merges it like an edit
+  // from another device of theirs: it keeps what the trainer changed, and what the student changed
+  // on another field since. A push tells the student. Audited.
+  'PUT /api/trainer/student/plan': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    if (!user.trainer) return json(res, 403, { error: 'not a trainer' });
+    const body = await readBody(req);
+    const link = db.trainerLinks.find(l => l.trainerId === user.id && l.clientId === body.id);
+    const student = link && db.users.find(u => u.id === body.id);
+    if (!student) return json(res, 404, { error: 'not your student' });
+    const cur = readStateStrict(student.id);
+    if (cur === UNREADABLE) return json(res, 503, { error: 'state unreadable' });
+    const plan = planFor(cur, body, user);
+    if (plan.error) return json(res, 400, { error: 'routines: a list of routines, each with an id and its exercises', code: plan.error });
+    const next = { ...(cur || {}), routines: plan.routines, ...(plan.week ? { week: plan.week } : {}) };
+    if (!commitState(student, cur, next, { overRead: true, stamped: false })) return json(res, 400, { error: 'invalid state' });
+    const names = (body.routines || []).map(r => String(r.name || '').slice(0, 40)).filter(Boolean);
+    if (names.length || (body.removed || []).length) sendPush(student.id, trainerPlanPush(cur?.lang, user.name, names));
+    audit(req, 'trainer.plan', { user, target: student, msg: `${(body.routines || []).length} routine(s), ${(body.removed || []).length} removed${body.week !== undefined ? ', week' : ''}` });
+    json(res, 200, { ok: true, routines: plan.routines.length });
+  },
+  // Either side ends a link: the access goes with it.
+  'POST /api/trainer/unlink': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    const body = await readBody(req);
+    const out = unlink(db.trainerLinks, body.id, user);
+    if (!out.link) return json(res, 404, { error: 'no such link' });
+    db.trainerLinks = out.links;
+    saveDb();
+    const other = db.users.find(u => u.id === (out.link.trainerId === user.id ? out.link.clientId : out.link.trainerId));
+    audit(req, 'trainer.unlink', { user, ...(other ? { target: other } : {}) });
+    json(res, 200, { ok: true });
+  }
+};
+
 const routes = {
   // 503 rather than a flag in a 200: the container healthcheck is `wget --spider`, which reads
   // the status and nothing else, and an instance that cannot write its data directory is exactly
@@ -2418,6 +2595,7 @@ const routes = {
 
   // Always there: more passkeys and device links need nothing an instance has to switch on.
   ...passkeyRoutes,
+  ...trainerRoutes,
 
   // `rev` is the server's own count of writes to this profile (also stored inside the document as
   // `_rev`, so every other reader of the file — reminder tick, admin, Coach, MCP — is unaffected).
@@ -2516,55 +2694,9 @@ const routes = {
         (body.baseRev != null && typeof body.baseWid === 'string' && cur?._wid && body.baseWid !== cur._wid)) {
       return json(res, 409, { error: 'conflict', rev: curRev, state: forClient(cur) });
     }
-    delete body.state.active;              // in-progress workouts stay device-local
-    // "Reset everything" stamps the profile (`resetAt`, with `resetIds`: what it wiped). The stamp
-    // only moves forward: a write without it, or with an older one — a client from before it, a
-    // backup restored over the profile — keeps the stored stamp. Otherwise every device that saw
-    // the reset would take that copy for one older than the reset, and wipe it again on its next
-    // merge (frontend/src/lib/sync-merge.js).
-    const storedReset = Number(cur?.resetAt) || 0;
-    if (storedReset > (Number(body.state.resetAt) || 0)) {
-      body.state.resetAt = cur.resetAt;
-      if (cur.resetIds && typeof cur.resetIds === 'object') body.state.resetIds = cur.resetIds;
-      else delete body.state.resetIds;
-    }
-    // The records of removals and edits only grow, and what a writer that does not stamp its own
-    // changes (an older app, an API script) changed is stamped here, so it is neither wiped nor
-    // undone by the next device that merges (sync-stamps.js).
-    // A document nested too deep to compare is the bad request the stringify below refuses too.
-    const report = {};
-    try { stampPut(cur, body.state, { overRead: body.baseRev != null && body.baseRev === curRev, stamped: body.stamped === true, report }); }
-    catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
-    body.state._rev = curRev + 1;          // server-owned; whatever the client sent is ignored
-    // A writer that does not stamp (an older app) takes the revision it is told for the document it
-    // sent, and only reads the profile again once the revision moves. When the server put back
-    // something it left out or set back (sync-stamps.js), the document stored is not that one: it
-    // goes in one revision further, so the writer's next check of the revision (every half minute)
-    // finds it moved and reads it, and its next push over the one it was told is a conflict to merge.
-    if (report.changed) body.state._rev = curRev + 2;
-    body.state._wids = [...(Array.isArray(cur?._wids) ? cur._wids : []), ...(cur?._wid ? [cur._wid] : [])]
-      .filter(x => typeof x === 'string').slice(-WID_KEEP);
-    body.state._wid = crypto.randomBytes(8).toString('hex');
-    // JSON.parse takes any nesting, JSON.stringify recurses and runs out of stack on a document
-    // nested some thousands deep. No client builds one; it is a bad request, not a server error.
-    let text;
-    try { text = JSON.stringify(body.state); }
-    catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
-    atomicWrite(stateFile(user.id), text);
-    // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
-    // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
-    // `_rev` going from 7 to 8 does not change the file's size, so two writes inside one 4 ms
-    // tick are the same (mtimeMs, size) key. A reader that sampled between them would then serve
-    // the old revision until some later write happened to land on a different tick. This is the
-    // only writer of a state file in the tree, so evicting here is the whole fix.
-    stateCache.delete(user.id);
-    // Starts (or stops) the grace clock of every stored file this write stopped (or started)
-    // referencing. Bookkeeping only: the state is already saved, so nothing here may turn a
-    // successful write into an error.
-    if (MEDIA_ON) {
-      try { MEDIA.noteState(user.id, body.state); } catch (e) { console.error('media noteState', e); }
-    }
-    json(res, 200, { ok: true, ts: body.state._ts || null, rev: curRev + 1, wid: body.state._wid });
+    const done = commitState(user, cur, body.state, { overRead: body.baseRev != null && body.baseRev === curRev, stamped: body.stamped === true });
+    if (!done) return json(res, 400, { error: 'invalid state' });
+    json(res, 200, { ok: true, ts: done.ts, rev: done.rev, wid: done.wid });
   },
 
   'GET /api/push/public-key': async (req, res) => json(res, 200, { key: vapid.publicKey }),
@@ -2706,7 +2838,7 @@ const routes = {
       const last = workouts[workouts.length - 1];
       return {
         id: u.id, name: u.name, created: u.created || null,
-        disabled: !!u.disabled, admin: isAdmin(u), owner: isOwner(u), invitedBy: u.invitedBy || null,
+        disabled: !!u.disabled, admin: isAdmin(u), owner: isOwner(u), trainer: !!u.trainer, invitedBy: u.invitedBy || null,
         workouts: workouts.length,
         lastWorkout: last ? last.d : null,
         lastSync: lastSyncOf(u, S),
@@ -2729,7 +2861,11 @@ const routes = {
     const S = readState(u.id) || {};
     json(res, 200, {
       user: {
-        id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), owner: isOwner(u), invitedBy: u.invitedBy || null,
+        id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), owner: isOwner(u), trainer: !!u.trainer, invitedBy: u.invitedBy || null,
+        students: u.trainer ? studentsOf(db.trainerLinks, db.users, u).map(x => x.student.name) : [],
+        // A trainer's live code for students, for the admin to hand on (none: expired or never made).
+        ...(u.trainer ? { trainerCode: u.trainerCode?.exp > Date.now() ? { code: u.trainerCode.code, exp: u.trainerCode.exp } : null } : {}),
+        trainers: trainersOf(db.trainerLinks, db.users, u).map(x => x.trainer.name),
         // Only on an instance with password sign-in: whether they have one, and until when an
         // unused reset code is good.
         ...(PASSWORD_LOGIN ? { password: hasPassword(u), email: u.email || null, resetUntil: u.pwReset?.exp > Date.now() ? u.pwReset.exp : null } : {}),
@@ -2763,6 +2899,34 @@ const routes = {
     if (u.disabled) return json(res, 400, { error: 'enable the account first', code: 'disabled' });
     const { code, link } = issueRecovery(req, u, admin);
     json(res, 200, { ok: true, name: u.name, code, expires: link.exp });
+  },
+
+  // The trainer role (trainer.js): a trainer sees, and plans, the training of the students who
+  // linked to them. Taken away, their links go too.
+  'POST /api/admin/user/trainer': async (req, res) => {
+    const admin = requireAdmin(req, res); if (!admin) return;
+    const body = await readBody(req);
+    const u = db.users.find(x => x.id === body.id);
+    if (!u) return json(res, 404, { error: 'no such user' });
+    if (body.trainer) u.trainer = true;
+    else { delete u.trainer; delete u.trainerCode; db.trainerLinks = dropLinksOf(db.trainerLinks, u.id, 'trainer'); }
+    saveDb();
+    audit(req, body.trainer ? 'admin.user.trainer' : 'admin.user.untrainer', { user: admin, target: u });
+    json(res, 200, { ok: true, id: u.id, trainer: !!u.trainer });
+  },
+
+  // A new code for a trainer's students, made by the admin (the trainer can make one too): the
+  // one before stops working. Audited.
+  'POST /api/admin/user/trainer-code': async (req, res) => {
+    const admin = requireAdmin(req, res); if (!admin) return;
+    const body = await readBody(req);
+    const u = db.users.find(x => x.id === body.id);
+    if (!u) return json(res, 404, { error: 'no such user' });
+    if (!u.trainer) return json(res, 400, { error: 'not a personal trainer' });
+    u.trainerCode = { code: newCode(), exp: Date.now() + CODE_DAYS * 86400000 };
+    saveDb();
+    audit(req, 'admin.trainer.code', { user: admin, target: u });
+    json(res, 200, { code: u.trainerCode.code, exp: u.trainerCode.exp });
   },
 
   'POST /api/admin/user/disable': async (req, res) => {
