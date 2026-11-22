@@ -18,5 +18,14 @@
     "Lock out overhead with the bar over your mid-foot.",
     "Lower the bar back to your collarbone with control."
   ],
+  "mistakes": [
+    "Leaning far back to push the bar up",
+    "Pressing the bar forward around the face",
+    "Loose core and glutes"
+  ],
+  "tips": [
+    "Squeeze the glutes and brace the abs so the lower back stays neutral.",
+    "Move your head back as the bar passes your face, then bring it forward under the bar at the top."
+  ],
   "textSource": "opengym"
 }

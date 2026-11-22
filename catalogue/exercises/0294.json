@@ -17,6 +17,15 @@
     "Inhale and slowly begin to lower the dumbbells back to the starting position.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Swinging the torso",
+    "Elbows drifting forward",
+    "Dropping the dumbbells on the way down"
+  ],
+  "tips": [
+    "Keep the elbows pinned to your sides.",
+    "Lower the dumbbells more slowly than you lift them."
+  ],
   "femaleVariant": "2483",
   "textSource": "exercisedb"
 }

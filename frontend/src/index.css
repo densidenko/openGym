@@ -676,6 +676,13 @@ h4.sec{
    each; a row wider than the sheet scrolls sideways like every .chips strip. */
 .chip.ichip{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .chip .qstate{text-transform:none}
+/* A strip one level above the chips under it (the Muscles view's zones over their muscles): tabs
+   on a hairline rather than pills, so the two rows do not read as one list. Inside a card the
+   pills under it take the nested fill; card-coloured they had no edge to tell them apart. */
+.chips.tabs{gap:2px;padding-bottom:0;border-bottom:var(--hair) solid var(--sep)}
+.chips.tabs .chip{background:none;border-radius:0;padding:6px 10px 8px;color:var(--label-2);box-shadow:inset 0 -2px transparent}
+.chips.tabs .chip.on{color:var(--acc);font-weight:600;box-shadow:inset 0 -2px var(--acc)}
+.card .chips.tabs + .chips .chip:not(.on){background:var(--surface-2)}
 /* On a phone these rows scroll by swipe. On a pointer device lib/hchips.js lets you
    click-drag anywhere on the row to pull it along; a grab cursor on rows that actually
    overflow (data-xscroll, set by hchips.js on hover) is the hint. */
@@ -2181,6 +2188,9 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
    to their own line instead and stay on the trailing edge. */
 .plan-sec-h>.plan-sec-acts{margin-inline-start:auto}
 .plan-sec-h h4.sec{margin:0}
+/* The headings between an exercise's steps, mistakes and tips: the usual section label, a shade
+   brighter and further from the list above, so they don't blend into the grey list text. */
+h4.sec.read-sec{color:var(--label);margin-top:26px}
 .plan-routines-bar{margin-top:0}
 .plan-textbtn{color:var(--acc);font-size:16px;padding:6px 4px;position:relative}
 .plan-textbtn::before{content:'';position:absolute;inset:-6px}

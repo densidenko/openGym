@@ -17,6 +17,15 @@
     "Pause at the top of the movement, then slowly lower your body back down to the starting position.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Kipping or swinging the body",
+    "Stopping short of a full hang at the bottom",
+    "Chin not reaching the bar"
+  ],
+  "tips": [
+    "Start each rep by pulling the shoulder blades down, then bend the elbows.",
+    "Keep the legs still and the core tight so you do not swing."
+  ],
   "muscleMap": {
     "primaries": [
       "upper-back"

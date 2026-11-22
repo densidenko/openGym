@@ -12,7 +12,7 @@ import { DEF, useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
 import { _setLangState } from './lib/i18n-core.js'
 import { bindUI } from './components/ui.jsx'
-import { customExSheet } from './sheets.jsx'
+import { customExSheet, exerciseDetailSheet } from './sheets.jsx'
 
 bindUI(useUI)   // the multi-select rows open their sheet through the shared controls
 
@@ -138,5 +138,69 @@ describe('custom exercise target (QA C10)', () => {
     const c = S().customEx[0]
     expect(c.primaries).toEqual(['trapezius', 'gluteal'])
     expect(c.tg).toBe('gluteal')
+  })
+})
+
+// The body part (the catalogue's zone) is the target muscle's zone unless a chip says otherwise:
+// a "lower arms" exercise with Shoulders as its primary was one tap away before.
+describe('custom exercise body part', () => {
+  it('follows the target muscle when no body part was tapped', () => {
+    customExSheet(null)
+    const form = renderTop()
+    act(() => type(form.querySelector('input.input'), 'QA Curl'))
+    click(form, '.chip', 'barbell')
+    pickMuscles(form, 'Primary muscle groups', ['Biceps'])
+    expect(byText(form, '.chip.on', 'upper arms')).toBeTruthy()
+    click(form, 'button', 'Create exercise')
+    expect(S().customEx.find(x => x.n === 'QA Curl').bp).toBe('upper arms')
+  })
+
+  it('keeps a body part the user tapped', () => {
+    customExSheet(null)
+    const form = renderTop()
+    act(() => type(form.querySelector('input.input'), 'QA Curl Plank'))
+    click(form, '.chip', 'barbell')
+    click(form, '.chip', 'waist')
+    pickMuscles(form, 'Primary muscle groups', ['Biceps'])
+    click(form, 'button', 'Create exercise')
+    expect(S().customEx.find(x => x.n === 'QA Curl Plank').bp).toBe('waist')
+  })
+
+  it('keeps a saved body part that is not the target zone', () => {
+    const ex = custom({ bp: 'full body' })
+    seed(ex)
+    customExSheet(EXIDX[ex.id])
+    const form = renderTop()
+    pickMuscles(form, 'Primary muscle groups', ['Quads'])
+    click(form, 'button', 'Save')
+    expect(S().customEx[0].bp).toBe('full body')
+  })
+})
+
+// Common mistakes and tips: one per line in the form, a list on the exercise, two sections on its
+// detail sheet. An emptied field removes its list.
+describe('custom exercise mistakes and tips', () => {
+  const area = (form, ph) => [...form.querySelectorAll('textarea')].find(e => e.placeholder.startsWith(ph))
+  it('saves one per line and shows them under the steps', () => {
+    seed(custom())
+    customExSheet(EXIDX.cqa1)
+    const form = renderTop()
+    act(() => type(area(form, 'Common mistakes'), '  Arching the back \n\nPushing through the toes'))
+    act(() => type(area(form, 'Tips'), 'Tuck the chin'))
+    click(form, 'button', 'Save')
+    expect(S().customEx[0]).toMatchObject({ mistakes: ['Arching the back', 'Pushing through the toes'], tips: ['Tuck the chin'] })
+    registerCustom(S().customEx)
+    exerciseDetailSheet(EXIDX.cqa1)
+    const sheet = renderTop()
+    const items = title => [...byText(sheet, 'h4', title).nextElementSibling.querySelectorAll('li')].map(e => e.textContent)
+    expect(items('Common mistakes')).toEqual(['Arching the back', 'Pushing through the toes'])
+    expect(items('Tips')).toEqual(['Tuck the chin'])
+
+    customExSheet(EXIDX.cqa1)
+    const again = renderTop()
+    expect(area(again, 'Common mistakes').value).toBe('Arching the back\nPushing through the toes')
+    act(() => type(area(again, 'Tips'), ' '))
+    click(again, 'button', 'Save')
+    expect(S().customEx[0]).not.toHaveProperty('tips')
   })
 })

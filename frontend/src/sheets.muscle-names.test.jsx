@@ -114,9 +114,31 @@ describe('muscle names in the rows and tags (QA C9)', () => {
   it('Muscles explorer row names the target the same way', () => {
     seed(custom())
     const host = render(<MuscleExplorer onDetail={vi.fn()} onPlan={vi.fn()} />)
-    const chip = [...host.querySelectorAll('.chip[aria-pressed]')].find(e => e.textContent.startsWith('Glutes'))
+    const chip = [...host.querySelectorAll('.chip[aria-pressed]')].find(e => e.textContent.startsWith('Forearms'))
     act(() => chip.click())
     act(() => type(host.querySelector('.search input'), 'QA Custom'))
-    expect(rowFor(host, 'QA Custom Thrust').querySelector('.ss').textContent).toBe('Primary target · Glutes · barbell')
+    expect(rowFor(host, 'QA Custom Thrust').querySelector('.ss').textContent).toBe('Helper muscle · Main: Glutes · barbell')
+  })
+
+  // The muscle row used to sit above all eleven body parts, five of them spelled like muscles.
+  // The zone now narrows the muscles, and once one is picked its part in each exercise is the filter.
+  it('Muscles explorer narrows muscles by zone and rows by the part the muscle plays', () => {
+    seed(custom())
+    const host = render(<MuscleExplorer onDetail={vi.fn()} onPlan={vi.fn()} />)
+    const chips = () => [...host.querySelectorAll('.chip[aria-pressed]')].map(e => e.textContent.replace(/\s*\d+$/, ''))
+    const tap = (sel, text) => act(() => [...host.querySelectorAll(sel)].find(e => e.textContent.startsWith(text)).click())
+    tap('.chip', 'upper legs')
+    expect(chips()).toEqual(['Glutes', 'Quads', 'Hamstrings', 'Adductors', 'Hip flexors'])
+    tap('.chip[aria-pressed]', 'Glutes')
+    act(() => type(host.querySelector('.search input'), 'QA Custom'))
+    expect(rowFor(host, 'QA Custom Thrust').querySelector('.ss').textContent).toBe('Main muscle · barbell')
+    tap('.chip', 'Helper muscle')
+    expect(rowFor(host, 'QA Custom Thrust')).toBeUndefined()
+    tap('.chip', 'Main muscle')
+    expect(rowFor(host, 'QA Custom Thrust')).toBeTruthy()
+    // A zone with one muscle picks it.
+    tap('.chip', 'shoulders')
+    expect(chips()).toEqual(['Shoulders'])
+    expect(host.querySelector('.chip[aria-pressed="true"]').textContent).toMatch(/^Shoulders/)
   })
 })

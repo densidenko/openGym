@@ -2,7 +2,8 @@
 // Issue #71 (the same rule Library and the exercise picker already keep): choosing a body part
 // after picking an equipment type must not reset the equipment filter back to "any equipment"
 // when the new body part still has exercises under it. MuscleExplorer used to clear it on every
-// body-part tap regardless — the only one of the three exercise browsers that did.
+// body-part tap regardless — the only one of the three exercise browsers that did. The body-part
+// chips under a chosen muscle are now its role (main or helper muscle), held to the same rule.
 import React, { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // The first render indexes all 5,600+ catalogue exercises for search and the muscle map, which
@@ -38,6 +39,8 @@ const chipByText = (host, text) =>
 const muscleChip = (host, label) =>
   [...host.querySelectorAll('.chips .chip')].find(b => b.textContent.startsWith(label))
 const isOn = el => el.className.split(/\s+/).includes('on')
+// The zone row above the muscles has an "All" too; the role row's is the last one.
+const roleAll = host => [...host.querySelectorAll('.chips .chip')].filter(b => b.textContent.trim() === 'All').at(-1)
 
 beforeEach(() => {
   mocks.S = {
@@ -48,37 +51,37 @@ beforeEach(() => {
 })
 afterEach(() => { act(() => { mounted.splice(0).forEach(root => root.unmount()) }) })
 
-describe('MuscleExplorer body-part chips keep the equipment filter', () => {
-  // Biceps has dumbbell exercises under both "lower arms" and "upper arms" in the catalog, the
+describe('MuscleExplorer role chips keep the equipment filter', () => {
+  // Biceps has dumbbell exercises both as the main and as a helper muscle in the catalog, the
   // same shape as issue #71's original repro (lower arms/upper arms + dumbbell).
-  it('keeps the dumbbell filter when switching from lower arms to upper arms', () => {
+  it('keeps the dumbbell filter when switching from helper to main muscle', () => {
     const host = render()
     act(() => { muscleChip(host, 'Biceps').click() })
 
-    act(() => { chipByText(host, 'lower arms').click() })
+    act(() => { muscleChip(host, 'Helper muscle').click() })
     const dumbbell = chipByText(host, 'dumbbell')
-    expect(dumbbell, 'dumbbell chip should be offered under lower arms').toBeTruthy()
+    expect(dumbbell, 'dumbbell chip should be offered for helper rows').toBeTruthy()
     act(() => { dumbbell.click() })
     expect(isOn(chipByText(host, 'dumbbell'))).toBe(true)
 
-    act(() => { chipByText(host, 'upper arms').click() })
-    expect(isOn(chipByText(host, 'upper arms'))).toBe(true)
+    act(() => { muscleChip(host, 'Main muscle').click() })
+    expect(isOn(muscleChip(host, 'Main muscle'))).toBe(true)
     const dumbbellAfter = chipByText(host, 'dumbbell')
-    expect(dumbbellAfter, 'dumbbell chip should still be present under upper arms').toBeTruthy()
+    expect(dumbbellAfter, 'dumbbell chip should still be present for main rows').toBeTruthy()
     expect(isOn(dumbbellAfter)).toBe(true)
     expect(isOn(chipByText(host, 'Any equipment'))).toBe(false)
   })
 
-  // "All" body parts is the one chip that does clear the equipment filter — it spans every
-  // body part, so there is no "still valid here" question to answer.
-  it('"All" body parts still clears the equipment filter', () => {
+  // "All" is the one role chip that does clear the equipment filter — it spans both roles, so
+  // there is no "still valid here" question to answer.
+  it('"All" roles still clears the equipment filter', () => {
     const host = render()
     act(() => { muscleChip(host, 'Biceps').click() })
-    act(() => { chipByText(host, 'lower arms').click() })
+    act(() => { muscleChip(host, 'Helper muscle').click() })
     act(() => { chipByText(host, 'dumbbell').click() })
     expect(isOn(chipByText(host, 'dumbbell'))).toBe(true)
 
-    act(() => { chipByText(host, 'All').click() })
+    act(() => { roleAll(host).click() })
     expect(isOn(chipByText(host, 'Any equipment'))).toBe(true)
   })
 })
@@ -105,7 +108,7 @@ describe('MuscleExplorer search: the × and live count the Library has (#338)', 
     expect(input.value).toBe('')
     expect(clear()).toBeNull()
     expect(count()).toBeNull()
-    act(() => { chipByText(host, 'upper arms').click() })
+    act(() => { muscleChip(host, 'Main muscle').click() })
     expect(count()).toBeTruthy()
     expect(clear()).toBeNull()
   })
@@ -140,7 +143,7 @@ describe('MuscleExplorer Favourites chip', () => {
     expect(rows).toHaveLength(1)
     act(() => { rows[0].click() })
     expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: curl.id }))
-    act(() => { chipByText(host, 'All').click() })
+    act(() => { roleAll(host).click() })
     expect(host.querySelectorAll('.list .item').length).toBeGreaterThan(1)
   })
 

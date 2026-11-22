@@ -12,7 +12,7 @@ files, so a fix merged here is in the next release for everyone.
 | Path | What it holds |
 |---|---|
 | `exercises/<id>.json` | One exercise in English: name, body part, equipment, muscles, description, steps |
-| `i18n/<lang>.json` | Translations: `{ "<id>": { "name", "description", "instructions" } }` |
+| `i18n/<lang>.json` | Translations: `{ "<id>": { "name", "description", "instructions", "mistakes", "tips" } }` |
 | `media/still/<id>.webp`, `media/clip/<id>.mp4` | The picture and animation (180 px). Licensed, not editable, see below |
 | `browse/` | Generated overview pages. Don't edit, they are rebuilt |
 
@@ -47,6 +47,9 @@ Open `exercises/<id>.json` (the browse pages link straight to it) and press the 
   and draws the muscle map from them, so a new word needs app support first. Ask in an issue.
 - **description**: one or two sentences on what the movement is and what it trains.
 - **instructions**: 4 to 7 short steps, second person ("Brace your core..."). No em dashes.
+- **mistakes**, **tips** (optional): what people commonly get wrong ("Bouncing the bar off the
+  chest") and a few short pointers in the second person. Shown under the steps as "Common
+  mistakes" and "Tips". Two to four of each is plenty. No em dashes.
 - **hold** (optional): `true` for an exercise that is only ever held, never repeated: a plank, a
   wall sit, a lever, a hang. Added to a workout or a routine, it starts as a timed hold. Leave it
   out when the exercise moves (a plank with taps, a Pallof press).

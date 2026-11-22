@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
-/* The English steps and descriptions come in their own chunk the first time an exercise is shown.
-   A load that failed (offline, before the worker had the chunk) used to leave them empty and
-   never ask again, so every exercise showed no steps until the app was reloaded. Now the next
-   reader after a pause, or the browser coming back online, tries again. */
+/* The English steps, descriptions, mistakes and tips come in their own chunks the first time an
+   exercise is shown. A load that failed (offline, before the worker had the chunk) used to leave
+   them empty and never ask again, so every exercise showed no steps until the app was reloaded.
+   Now the next reader after a pause, or the browser coming back online, tries again. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const net = { up: false, loads: 0 }
@@ -18,6 +18,7 @@ beforeEach(async () => {
   net.loads = 0
   vi.doMock('../instr/en.js', async () => { net.loads++; return net.up ? { default: { 9999: ['Stand tall.', 'Lift.'] } } : offline() })
   vi.doMock('../exercise-desc/en.js', async () => (net.up ? { default: { 9999: 'A lift.' } } : offline()))
+  vi.doMock('../exercise-tips/en.js', async () => (net.up ? { default: { 9999: { tips: ['Brace.'] } } } : offline()))
   i18n = await import('./i18n.js')
 })
 afterEach(() => { vi.useRealTimers() })
@@ -38,6 +39,7 @@ describe('a failed load of the English steps', () => {
     i18n.instrFor(ex)
     await vi.advanceTimersByTimeAsync(0)
     expect(i18n.instrFor(ex)).toEqual(['Stand tall.', 'Lift.'])
+    expect(i18n.tipsFor(ex)).toEqual(['Brace.'])
   })
 
   it('tried again as soon as the browser is back online', async () => {

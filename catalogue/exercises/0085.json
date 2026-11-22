@@ -20,6 +20,15 @@
     "Squeeze your glutes at the top of the movement.",
     "Lower the barbell back down to the starting position and repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Rounding the back",
+    "Bending the knees so much it turns into a squat",
+    "Letting the bar drift away from the legs"
+  ],
+  "tips": [
+    "Push the hips back as if closing a door behind you.",
+    "Go down only until you feel a strong stretch in the hamstrings."
+  ],
   "muscleMap": {
     "primaries": [
       "gluteal",

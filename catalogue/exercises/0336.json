@@ -19,6 +19,15 @@
     "Repeat with your left leg.",
     "Alternate legs for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Front knee caving inward",
+    "Steps so short the front heel lifts",
+    "Leaning the torso forward"
+  ],
+  "tips": [
+    "Take a long enough step that both knees bend to about 90 degrees.",
+    "Push through the front heel to stand back up."
+  ],
   "femaleVariant": "2218",
   "textSource": "exercisedb"
 }

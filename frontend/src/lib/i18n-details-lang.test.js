@@ -21,3 +21,16 @@ describe('a language switch while the details load', () => {
     expect(core.descFor(ex)).toBe('Un levé.')
   })
 })
+
+// Common mistakes and tips: the language's own list, else the English one, else a custom
+// exercise's own, each list on its own (a language may have translated only one of them).
+describe('common mistakes and tips', () => {
+  it('fall back to English one list at a time, then to the exercise itself', () => {
+    core._setLangState('uk', {}, null, null, true, false)
+    core._setDetails({}, {}, {}, 'uk', { 9999: { mistakes: ['Rounding.'], tips: ['Brace.'] } }, { 9999: { mistakes: ['Округлення.'] } })
+    expect(core.mistakesFor(ex)).toEqual(['Округлення.'])
+    expect(core.tipsFor(ex)).toEqual(['Brace.'])
+    expect(core.tipsFor({ id: 'c1', tips: ['Own tip.'] })).toEqual(['Own tip.'])
+    expect(core.mistakesFor({ id: 'c2' })).toEqual([])
+  })
+})

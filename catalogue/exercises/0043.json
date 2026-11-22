@@ -22,6 +22,15 @@
     "Drive through your heels to stand back up, extending your hips and knees.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Knees caving inward",
+    "Heels lifting off the floor",
+    "Rounding the lower back at the bottom"
+  ],
+  "tips": [
+    "Take a deep breath and brace your core before each rep.",
+    "Push the knees out in line with the toes and keep your weight over the mid-foot."
+  ],
   "muscleMap": {
     "primaries": [
       "quadriceps",

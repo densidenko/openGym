@@ -341,6 +341,15 @@ describe('custom exercises in a shared plan', () => {
     expect(target.customEx[0]).toMatchObject({ primaries: ['upper-back'], secondaries: ['biceps'], muscleGroups: ['upper-back', 'biceps'], tg: 'upper-back', sm: ['biceps'] })
   })
 
+  it('carries common mistakes and tips as lists of text, and nothing else in them', () => {
+    const bundle = { opengym_plan: 1, routines: [], customEx: [{ id: 'x', n: 'Odd', bp: 'back', eq: 'barbell',
+      mistakes: ['Rounding the back', ' ', 7, { a: 1 }], tips: 'not a list' }] }
+    const target = { routines: [], week: {}, customEx: [] }
+    mergePlan(target, parsePlan(bundle))
+    expect(target.customEx[0].mistakes).toEqual(['Rounding the back'])
+    expect(target.customEx[0]).not.toHaveProperty('tips')
+  })
+
   it('still reuses a custom the recipient already has under the same name and body part', () => {
     const parsed = parsePlan(JSON.stringify(buildPlanBundle(source, 'Plan')))
     const mine = { id: 'mine', n: 'qa landmine row', bp: 'back', eq: 'landmine', custom: true }

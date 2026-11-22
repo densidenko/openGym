@@ -204,6 +204,11 @@ function cleanCustom(c) {
   const aliases = normalizeAliases(c.aliases)
   if (aliases.length) o.aliases = aliases
   if (c.desc) o.desc = c.desc
+  // Common mistakes and tips travel like the description, as the short lists the form writes.
+  for (const k of ['mistakes', 'tips']) {
+    const lines = Array.isArray(c[k]) ? c[k].filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 200)).slice(0, 10) : []
+    if (lines.length) o[k] = lines
+  }
   // The link to a video or guide travels with a shared plan (#246), cleaned both ways like any
   // other field of someone else's file; the exercise's own photo or video never does — it is a
   // file on the sender's device and server, and a plan file is plain JSON.

@@ -20,6 +20,15 @@
     "Hold for 20-60 seconds while breathing steadily.",
     "Don't let your hips sag or pike up."
   ],
+  "mistakes": [
+    "Hips sagging",
+    "Hips piked up high",
+    "Holding the breath"
+  ],
+  "tips": [
+    "Squeeze the glutes and draw the belly button in.",
+    "End the set when your form breaks, not only when the timer says so."
+  ],
   "femaleVariant": "0465",
   "textSource": "opengym"
 }

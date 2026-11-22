@@ -19,6 +19,15 @@
     "Pause for a moment at the bottom of the movement, then slowly release the bar back to the starting position.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Leaning far back",
+    "Pulling the bar behind the neck",
+    "Letting the bar fly up between reps"
+  ],
+  "tips": [
+    "Pull the bar to the upper chest, leading with the elbows.",
+    "Control the way up until your arms are straight."
+  ],
   "muscleMap": {
     "primaries": [
       "upper-back"

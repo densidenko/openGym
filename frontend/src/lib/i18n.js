@@ -7,12 +7,12 @@ import { useSyncExternalStore } from 'react'
 import {
   LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS, DATE_LOCALES, DERIVED_LOCALES, RTL_LANGS,
   getLang, dateLocale, t, tn, instrFor, exerciseNameFor, exerciseNameSearchText, getVersion,
-  baseLang, derivePack, _setLangState, exerciseNameClass, descFor, instrTranslated, _setDetailsLoader, _setDetails, _detailsFailed
+  baseLang, derivePack, _setLangState, exerciseNameClass, descFor, mistakesFor, tipsFor, instrTranslated, _setDetailsLoader, _setDetails, _detailsFailed
 } from './i18n-core.js'
 
 export {
   LANGS, INSTR_LANGS, EXERCISE_NAME_LANGS, DATE_LOCALES, DERIVED_LOCALES, RTL_LANGS,
-  getLang, dateLocale, t, tn, instrFor, instrTranslated, descFor, exerciseNameFor, exerciseNameSearchText, exerciseNameClass, baseLang
+  getLang, dateLocale, t, tn, instrFor, instrTranslated, descFor, mistakesFor, tipsFor, exerciseNameFor, exerciseNameSearchText, exerciseNameClass, baseLang
 }
 
 // Vite code-splits locale, instruction and exercise-name packs via import.meta.glob. They are
@@ -21,6 +21,7 @@ const localePacks = import.meta.glob('../locales/*.js')
 const instrPacks = import.meta.glob('../instr/*.js')
 const exerciseNamePacks = import.meta.glob('../exercise-names/*.js')
 const descPacks = import.meta.glob('../exercise-desc/*.js')
+const tipsPacks = import.meta.glob('../exercise-tips/*.js')
 
 // English steps and descriptions, plus the language's own descriptions where it has some: fetched
 // the first time any screen asks for an exercise's details (i18n-core askDetails), and again for
@@ -30,17 +31,20 @@ async function loadDetails() {
   const l = getLang()
   const base = baseLang(l)
   const load = async (packs, key) => { try { return packs[key] ? (await packs[key]()).default : null } catch (e) { return null } }
-  const [en, enDesc, desc] = await Promise.all([
+  const [en, enDesc, desc, enTips, tips] = await Promise.all([
     load(instrPacks, '../instr/en.js'),
     load(descPacks, '../exercise-desc/en.js'),
     base === 'en' ? null : load(descPacks, '../exercise-desc/' + base + '.js'),
+    load(tipsPacks, '../exercise-tips/en.js'),
+    base === 'en' ? null : load(tipsPacks, '../exercise-tips/' + base + '.js'),
   ])
-  // Either English pack missing is a failed load (both always exist): core asks again later.
-  if (en && enDesc) detailsLoaded = true
+  // Any English pack missing is a failed load (they always exist): core asks again later.
+  const ok = en && enDesc && enTips
+  if (ok) detailsLoaded = true
   // The language changed while this loaded (setLang only reloads once a load has finished): the
   // descriptions are the old language's, so the new one's are loaded instead.
-  const current = _setDetails(en, enDesc, derivePack(l, desc), l)
-  if (!en || !enDesc) _detailsFailed()
+  const current = _setDetails(en, enDesc, derivePack(l, desc), l, enTips, derivePack(l, tips))
+  if (!ok) _detailsFailed()
   notify()
   if (!current) return loadDetails()
 }

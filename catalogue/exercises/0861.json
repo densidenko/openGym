@@ -17,6 +17,15 @@
     "Pause for a moment at the peak of the movement, then slowly release the handles back to the starting position.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Rocking the torso back and forth",
+    "Rounding the back as the weight goes forward",
+    "Shrugging the shoulders"
+  ],
+  "tips": [
+    "Sit tall and keep the torso still. The arms and back do the work.",
+    "Squeeze the shoulder blades together as the handle reaches your stomach."
+  ],
   "muscleMap": {
     "primaries": [
       "upper-back"

@@ -20,6 +20,15 @@
     "Pause for a moment at the top of the movement, then slowly lower the footplate back towards your body by bending your knees.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Locking the knees out at the top",
+    "Lower back lifting off the pad",
+    "Feet too close to the bottom edge of the platform"
+  ],
+  "tips": [
+    "Keep your whole back, especially the lower back, pressed into the pad for the entire set. It protects the spine and keeps the work in the legs.",
+    "Lower the platform only as far as your lower back stays flat."
+  ],
   "muscleMap": {
     "primaries": [
       "quadriceps",

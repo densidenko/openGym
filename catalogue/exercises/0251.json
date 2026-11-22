@@ -16,6 +16,15 @@
     "Push yourself back up to the starting position by straightening your arms.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Shoulders shrugging up to the ears",
+    "Going too deep",
+    "Swinging the legs"
+  ],
+  "tips": [
+    "Lean the torso slightly forward to work the chest more.",
+    "Lower until your upper arms are about parallel to the floor."
+  ],
   "femaleVariant": "3599",
   "textSource": "exercisedb"
 }

@@ -30,6 +30,21 @@ export const inMuscleOrder = list => {
   return [...(list || [])].sort((a, b) => at(a) - at(b))
 }
 
+// The catalogue's body parts (`bp`) as zones of the map, in the map's own top-down order. Each muscle
+// sits in one zone: the body part of nearly every catalogue exercise that has it as the target.
+// Neck, cardio and full body hold no drawable muscle and are not zones.
+export const ZONES = {
+  shoulders: ['deltoids'],
+  chest: ['chest', 'serratus'],
+  back: ['trapezius', 'upper-back', 'lower-back'],
+  'upper arms': ['biceps', 'triceps'],
+  'lower arms': ['forearm'],
+  waist: ['abs', 'obliques'],
+  'upper legs': ['gluteal', 'quadriceps', 'hamstring', 'adductors', 'hip-flexors'],
+  'lower legs': ['calves', 'tibialis'],
+}
+export const zoneOf = muscle => Object.keys(ZONES).find(z => ZONES[z].includes(muscle)) || ''
+
 // Drawn as the silhouette, never shaded: they carry no training load.
 export const INERT = ['head', 'hair', 'neck', 'hands', 'feet', 'knees', 'ankles']
 

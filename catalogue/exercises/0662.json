@@ -17,6 +17,15 @@
     "Pause for a moment when your chest is just above the ground, then push yourself back up to the starting position by straightening your arms.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Hips sagging",
+    "Elbows flared straight out",
+    "Half reps that stop well above the floor"
+  ],
+  "tips": [
+    "Keep a straight line from head to heels by squeezing the glutes and abs.",
+    "If full push-ups are too hard, put your hands on a bench rather than shortening the range."
+  ],
   "femaleVariant": "2881",
   "textSource": "exercisedb"
 }

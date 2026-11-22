@@ -19,6 +19,15 @@
     "Push the barbell back up to the starting position by extending your arms.",
     "Repeat for the desired number of repetitions."
   ],
+  "mistakes": [
+    "Bouncing the bar off the chest",
+    "Flaring the elbows straight out to the sides",
+    "Lifting the hips off the bench"
+  ],
+  "tips": [
+    "Pull the shoulder blades back and down before you unrack, and keep them there for the whole set.",
+    "Lower the bar to the lower chest with the elbows about 45 to 70 degrees from the body."
+  ],
   "muscleMap": {
     "primaries": [
       "chest"
